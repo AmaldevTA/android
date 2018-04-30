@@ -26,10 +26,15 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -53,22 +58,84 @@ public class HttpUrlActivity extends AppCompatActivity {
         //params.put("token", "FH5868536HFR45CF452HFF");
         //getFullProfile("91", params);
 
+        /*raw data */
         //updateProfile();
 
+
+        /*form-urlencoded */
+        //Map<String, String> params = new HashMap<>();
+        //params.put("userId", "56325");
+        //params.put("name", "Amal");
+        //params.put("address", "Addr");
+        //updateUser(params);
+
+        /*form-data file */
+        //updateProfilePicture();
 
         new Thread(new Runnable() {
             @Override
             public void run() {
-                updateProfilePicture();  
+
             }
         }).start();
     }
 
+    private void updateUser(Map<String, String> params) {
+
+        try{
+            StringBuilder result = new StringBuilder();
+            boolean first = true;
+            for(Map.Entry<String, String> entry : params.entrySet()){
+                if (first)
+                    first = false;
+                else
+                    result.append("&");
+                result.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+                result.append("=");
+                result.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+            }
+
+
+            byte[] postData = result.toString().getBytes( StandardCharsets.UTF_8 );
+            int postDataLength = postData.length;
+            String request = BASE_URL + "/payment/updateProfileForm";
+            URL url = new URL(request);
+            HttpURLConnection conn= (HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);
+            conn.setInstanceFollowRedirects(false);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            conn.setRequestProperty("charset", "utf-8");
+            conn.setRequestProperty("Content-Length", Integer.toString(postDataLength ));
+            conn.setUseCaches(false);
+            DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+            wr.write(postData);
+
+            conn.connect();
+            int response = conn.getResponseCode();
+
+            InputStream is = conn.getInputStream();
+
+            StringBuilder sb = new StringBuilder();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line + "\n");
+            }
+
+            reader.close();
+
+            Log.e("response" , sb.toString());
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+
+    }
+
+
     private void updateProfilePicture() {
         String userID = "563348";
-        String attachmentFileName = "Selection_002.png";
-        String crlf = "\r\n";
-        String twoHyphens = "--";
+        String LINE_FEED = "\r\n";
         String boundary =  "*****";
 
         try {
@@ -77,35 +144,55 @@ public class HttpUrlActivity extends AppCompatActivity {
             httpUrlConnection.setUseCaches(false);
             httpUrlConnection.setDoOutput(true);
             httpUrlConnection.setRequestMethod("POST");
-            httpUrlConnection.setRequestProperty("Connection", "Keep-Alive");
-            httpUrlConnection.setRequestProperty("Cache-Control", "no-cache");
             httpUrlConnection.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
 
 
-            DataOutputStream request = new DataOutputStream(httpUrlConnection.getOutputStream());
+            PrintWriter writer =  new PrintWriter(new OutputStreamWriter(httpUrlConnection.getOutputStream(),
+                    "UTF-8"), true);
+            writer.append("--" + boundary).append(LINE_FEED);
+            writer.append("Content-Disposition: form-data; name=\"" + "id" + "\"")
+                    .append(LINE_FEED);
+            writer.append("Content-Type: text/plain; charset=" + "UTF-8").append(
+                    LINE_FEED);
+            writer.append(LINE_FEED);
+            writer.append(userID).append(LINE_FEED);
+            writer.flush();
 
-            request.writeBytes(twoHyphens + boundary + crlf);
-            request.writeBytes("Content-Disposition: form-data; id=\"" +
-                    userID + "\";file=\"" +
-                    attachmentFileName + "\"" + crlf);
-            request.writeBytes(crlf);
 
-            File file = new File("/storage/emulated/0/Download/Selection_002.png");
-            byte[] b = new byte[(int) file.length()];
-            try {
-                FileInputStream fileInputStream = new FileInputStream(file);
-                fileInputStream.read(b);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            request.write(b);
 
-            request.writeBytes(crlf);
-            request.writeBytes(twoHyphens + boundary +
-                    twoHyphens + crlf);
+            File uploadFile = new File("/storage/emulated/0/Download/Selection_002.png");
 
-            request.flush();
-            request.close();
+            String fileName = uploadFile.getName();
+            writer.append("--" + boundary).append(LINE_FEED);
+            writer.append("Content-Disposition: form-data; name=\"" + "file"
+                            + "\"; filename=\"" + fileName + "\"")
+                    .append(LINE_FEED);
+
+            writer.append("Content-Type: "
+                    + URLConnection.guessContentTypeFromName(fileName))
+                    .append(LINE_FEED);
+            writer.append("Content-Transfer-Encoding: binary").append(LINE_FEED);
+            writer.append(LINE_FEED);
+            writer.flush();
+
+            OutputStream outputStream = httpUrlConnection.getOutputStream();
+
+            byte[] b = new byte[(int) uploadFile.length()];
+            FileInputStream fileInputStream = new FileInputStream(uploadFile);
+            fileInputStream.read(b);
+            fileInputStream.close();
+            outputStream.write(b);
+
+
+            outputStream.flush();
+
+            writer.append(LINE_FEED);
+            writer.flush();
+
+            writer.append(LINE_FEED).flush();
+            writer.append("--" + boundary + "--").append(LINE_FEED);
+            writer.close();
+
 
             Log.e("response code" , ""+httpUrlConnection.getResponseCode());
 
