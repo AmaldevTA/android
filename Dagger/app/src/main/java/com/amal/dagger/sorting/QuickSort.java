@@ -1,10 +1,17 @@
 package com.amal.dagger.sorting;
 
+import android.content.Context;
+import android.util.Log;
+
+import javax.inject.Inject;
+
 /**
  * Created by amal on 4/2/17.
  */
 
 public class QuickSort implements Sort{
+
+
     @Override
     public int[] sortArray(int[] in) {
         sort(in, 0, in.length - 1);
