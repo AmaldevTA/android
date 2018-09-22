@@ -2,9 +2,9 @@ package com.amal.dagger;
 
 import android.app.Application;
 
-import com.amal.dagger.dagger.components.ApplicationComponent;
-import com.amal.dagger.dagger.components.DaggerApplicationComponent;
-import com.amal.dagger.dagger.modules.ApplicationModule;
+import com.amal.dagger.dagger.ApplicationComponent;
+import com.amal.dagger.dagger.DaggerApplicationComponent;
+import com.amal.dagger.dagger.modules.AppContextModule;
 
 
 public class MyApplication extends Application {
@@ -19,7 +19,7 @@ public class MyApplication extends Application {
 
     private void initializeInjector() {
         applicationComponent = DaggerApplicationComponent.builder()
-                .applicationModule(new ApplicationModule(this))
+                .appContextModule(new AppContextModule(this))
                 .build();
     }
 
